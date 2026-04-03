@@ -1,0 +1,68 @@
+---
+title: minimizing deviations in hypergraph matrices
+description: the definition of good rows in the incidence matrix allows establishing a basis for the stability of the hypergraph even with extreme noise levels.
+---
+
+to begin, let’s define the inequality that allows us to determine good rows in the incidence matrix. A row $i$ of the matrix $\gamma(\Upsilon)$ in our case will be called good if for each $j = 1, \ldots, r$ the inequality holds:
+
+$$
+\epsilon_{ij} \leq \frac{1}{r} - \frac{1}{r^2} - \frac{2}{r \ln r}
+$$
+
+using this fact and the previously determined basis, we obtain:
+
+$$
+k_i(\gamma(\Upsilon)) \leq 6 + \frac{37}{r} + O\left(\frac{1}{r^2}\right) \sum_{j=1}^r \epsilon_{ij}^2
+$$
+
+next, applying the upper bound, obtain:
+
+$$
+k_i(\gamma(\Upsilon)) \leq r \ln r + \frac{30}{6} \ln r - \frac{259 \ln r}{36} + \frac{r \ln r}{r} + O\left(\frac{1}{r^2}\right) \sum_{j=1}^r \epsilon_{ij}^2
+$$
+
+knowing this, consider situations in the case of good rows for $\epsilon_{ij} < 0$
+
+$$
+\left(\frac{1}{r^2} + \epsilon_{ij}\right) \ln(1 + r^2 \epsilon_{ij}) \geq \epsilon_{ij} + \frac{1}{r^2} (r^2 \epsilon_{ij})^2 = \epsilon_{ij} + \frac{r^2 \epsilon_{ij}^2}{2}
+$$
+
+if $\epsilon_{ij} > 0$ but $\epsilon_{ij} \leq \frac{1}{r \ln r} - \frac{1}{r^2}$, we use the estimate of the function $\varphi(x) = (1 + x) \ln (1 + x)$. It is known that $\varphi(x) > x + \frac{x^2}{2(1 + \frac{x}{3})}$ for $x > 0$. Let $x = r^2 \epsilon_{ij}$ and get the following estimate:
+
+$$
+\left(\frac{1}{r^2} + \epsilon_{ij}\right) \ln(1 + r^2 \epsilon_{ij}) \geq \epsilon_{ij} + \frac{r^2 \epsilon_{ij}^2}{2(1 + \frac{r^2 \epsilon_{ij}}{3})}
+$$
+
+estimating the denominator: $1 + \frac{r^2 \epsilon_{ij}}{3} \leq 1 + \frac{3r \ln r}{r}$:
+
+$$
+\left(\frac{1}{r^2} + \epsilon_{ij}\right) \ln(1 + r^2 \epsilon_{ij}) \geq \epsilon_{ij} + \frac{r^2 \epsilon_{ij}^2}{2(1 + r \ln r)}
+$$
+
+further, if $\epsilon_{ij} \in \left( \frac{1}{r \ln r} - \frac{1}{r^2}, \frac{1}{r} - \frac{2 \ln \ln r}{\ln r} \right)$, we estimate the summand as follows:
+
+$$
+\left(\frac{1}{r^2} + \epsilon_{ij}\right) \ln(1 + r^2 \epsilon_{ij}) \geq \left(\frac{1}{r^2} + \epsilon_{ij}\right) \ln \left( \frac{r \ln r}{r \ln r - r} \right)
+$$
+
+using the inequality $1 > r \epsilon_{ij} \left(1 - \frac{1}{r} - \frac{2 \ln \ln r}{\ln r}\right) - 1$:
+
+$$
+\left(\frac{1}{r^2} + \epsilon_{ij}\right) \ln(1 + r^2 \epsilon_{ij}) \geq \epsilon_{ij} + r \ln r \epsilon_{ij} \left(1 + \frac{2 \ln \ln r}{\ln r} + O \left(\frac{\ln \ln r}{\ln r}\right)^2 (1 - \frac{\ln \ln r}{\ln r})\right)
+$$
+
+thus, for a good row with sufficiently large $r$ we get:
+
+$$
+h_i(\gamma(Υ)) - k_i(γ(Υ)) \geq \frac{r^2}{4} \sum_{j: \epsilon_{ij} < 0} \epsilon_{ij}^2 + \frac{r}{2} \sum_{j: \epsilon_{ij} > 0} \epsilon_{ij}^2
+$$
+
+the rows in the matrix remain good even with a high level of noise $\epsilon_{ij}$ (after several operations). A good row means that the hypergraph is stable.
+
+the inequality also shows that for good rows in the matrix, the difference between the first element $h_i(\gamma(Υ))$ and the second element $k_i(γ(Υ))$ (at the time of recalculation) with a large $r$ value is limited from below by the sum of squares of noise $\frac{r^2}{4} \sum_{j : \epsilon_{ij} < 0} \epsilon_{ij}^2 + \frac{r}{2} \sum_{j : \epsilon_{ij} > 0} \epsilon_{ij}^2$.
+
+<Note>
+
+	a large value of $r$ allows the hypergraph system to remain stable, as proven above.
+
+</Note>

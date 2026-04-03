@@ -1,0 +1,171 @@
+---
+title: multiplication of integers
+description: multiplication of integers via hypergraphs in HFHE. Principles of noise control in multiplication.
+---
+
+the mechanics of integer multiplication are different from those used for cipher vectors and can be reduced to tensor products over hyperedges. To begin, two integer values, $A$ and $B$, shall be defined. They will be preliminarily transformed and processed through a transformation mechanism:
+
+$$
+A = \mathcal{E}(x_A), \quad B = \mathcal{E}(x_B)
+$$
+
+the form of the tensor product of these values will be defined as follows:
+
+$$
+T(A, B) = A \otimes B
+$$
+
+where:
+
+$$
+T(A, B)_{ij} = \mathcal{E}(A_{ij}) \cdot \mathcal{E}(B_{ij})
+$$
+
+now it is necessary to add cubic effects to the accumulation of noise for each element of the matrices:
+
+$$
+N(A_{ij}) = \frac{1}{r^2} + \epsilon_{ij} + O\left( \epsilon_{ij}^3 \right)
+$$
+
+now, for the result of the product, the noise will be defined as follows:
+
+$$
+N(T(A, B)) = \sum_{i=1}^{r} \left( N(A_{ij}) + N(B_{ij}) \right) + O\left( \sum_{i,j} \epsilon_{ij}^3 \right)
+$$
+
+the normalization mechanism for row $i$ of matrix $(\Upsilon)$, where all noise elements include cubic dependencies, is defined as follows:
+
+$$
+\epsilon_{ij} = \frac{1}{r^2} + \epsilon_{ij}, \quad j \neq i
+$$
+
+the estimate for the normalized row, taking cubic terms into account, is defined as follows:
+
+$$
+f_i(\Upsilon) = \sum_{j=1}^{r} \left( \frac{1}{r^2} + \epsilon_{ij} + O(\epsilon_{ij}^3) \right) \ln(1 + r^2 \epsilon_{ij})
+$$
+
+ultimately, the noise for the product of the elements is defined as follows:
+
+$$
+N(T(A, B)) = \ln \frac{r}{r} - \delta_i \ln(r - r^2 \delta_i) + \sum_{j \neq i} \delta_{ij} \ln(r^2 \delta_{ij}) + O\left( \sum_{i,j} \epsilon_{ij}^3 \right)
+$$
+
+the accumulated noise now incorporates both a logarithmic component and cubic elements:
+
+$$
+f_i(\Upsilon) \geq \frac{\ln r}{r} + \delta_i \ln \delta_i + \delta_i \ln \left( \frac{r}{r - 1} \right) - \delta_i + O(\delta_i^3)
+$$
+
+thus, the system of multiplication of two integers will include the tensor product, logarithmic dependencies and cubic elements and is expressed as follows:
+
+$$
+T(A, B) = \sum_{i=1}^{r} \left( \frac{1}{r^2} + \epsilon_{ij} + O(\epsilon_{ij}^3) \right) \ln(1 + r^2 \epsilon_{ij}) + N_{\text{total}}
+$$
+
+where:
+
+$$
+N_{\text{total}} = \sum_{i,j} \left( N(A_{ij}) + N(B_{ij}) \right) + O\left( \sum_{i,j} \epsilon_{ij}^3 \right)
+$$
+
+the final form of the product of integer values is expressed as follows:
+
+$$
+T(A, B) = \sum_{i=1}^{n} \mathcal{E}(a_i \cdot \log(b_i + 1)) + O\left( \sum_{i,j} \epsilon_{ij}^3 \right)
+$$
+
+```ocaml
+let t_product a b =
+  let epsilon i j = Random.float 1.0 ** 3.0 in
+  let log_term i = (List.nth a i) *. log ((List.nth b i) +. 1.0) in
+  let eps_sum i =
+    let rec inner_sum j acc =
+      if j >= List.length a then acc
+      else inner_sum (j + 1) (acc +. epsilon i j)
+    in
+    inner_sum 0 0.0
+  in
+  let rec summation i acc_log acc_eps =
+    if i >= List.length a then acc_log +. acc_eps
+    else
+      let log_acc = log_term i in
+      let eps_acc = eps_sum i in
+      summation (i + 1) (acc_log +. log_acc) (acc_eps +. eps_acc)
+  in
+  summation 0 0.0 0.0
+
+module HG = struct
+  type hg = { vertices: (float * float) list; hyperedges: (float * float) list list }
+  let create () = { vertices = []; hyperedges = [] }
+  let add_vertex hg vertex = { hg with vertices = vertex :: hg.vertices }
+  let connect hg vertices = { hg with hyperedges = vertices :: hg.hyperedges }
+  let rec hyper_mul hg acc_enc acc_noise base_enc base_noise exp =
+    if exp <= 0.0 then (acc_enc, acc_noise, hg)
+    else
+      let hg = add_vertex hg (base_enc, base_noise) in
+      let acc_enc', acc_noise', hg =
+        if exp > 1.0 then
+          let new_acc_enc = acc_enc +. base_enc in
+          let new_acc_noise = acc_noise +. base_noise in
+          let hg = connect hg [ (base_enc, base_noise) ] in
+          (new_acc_enc, new_acc_noise, hg)
+        else
+          (acc_enc, acc_noise, hg)
+      in
+      let new_base_enc = base_enc +. base_enc in
+      let new_base_noise = base_noise +. base_noise in
+      hyper_mul hg acc_enc' acc_noise' new_base_enc new_base_noise (exp /. 2.0)
+end
+
+let perform_multiplication a b key_pair =
+  let key_enc, key_noise = key_pair in
+  let hg_init = HG.create () in
+  let enc_a = List.nth a 0 *. key_enc in
+  let noise_a = List.nth b 0 *. key_noise in
+  let node_b_state = List.nth b 1 in
+  let new_enc_value, new_noise, _ = HG.hyper_mul hg_init enc_a noise_a enc_a noise_a node_b_state in
+  t_product a b +. new_enc_value +. new_noise
+```
+
+### logarithmic effects and aggregation of all elements
+
+a logarithmic transformation is added to each element:
+
+$$
+\mathcal{E}(a_i \cdot b_i) \rightarrow \mathcal{E}(a_i \cdot \log(b_i + 1))
+$$
+
+after applying logarithmic effects to each element, all results are aggregated to obtain the final product of the vectors:
+
+$$
+\sum_{i=1}^{n} \mathcal{E}(a_i \cdot \log(b_i + 1))
+$$
+
+this mechanism integrates all the results of operations on vector structures, resulting in the product of $A$ and $B$, while preserving homomorphism.
+
+### adding hypervertices and hyperedges
+
+- at each step of the multiplication $\mathcal{E}(a_i \cdot \log(b_i + 1))$, a new vertex is added to the hypergraph with the corresponding noise and result;
+
+- after obtaining the product of the elements, a hyperedge is created, connecting the vertices that represent the result of the multiplication;
+
+- each vertex is connected to other vertices through a hyperedge, which preserves the product result and the accumulated noise.
+
+$$
+v_i = \mathcal{E}(a_i \cdot \log(b_i + 1)), \quad \epsilon_{ij} = \frac{1}{r^2} + O(\epsilon_{ij}^3)
+$$
+
+$$
+e_{ij} = \mathcal{E}(a_i \cdot b_j) + O(\epsilon_{ij}^3)
+$$
+
+$$
+e_{ij} = v_i \otimes v_j
+$$
+
+<Note>
+
+	the cases of matrix multiplication and floating-point numbers are considered separately in other articles.
+
+</Note>

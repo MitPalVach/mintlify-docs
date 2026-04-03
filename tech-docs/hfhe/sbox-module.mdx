@@ -1,0 +1,85 @@
+---
+title: sbox module
+description: this module implements sbox functionality for generating all types of keys.
+---
+
+it implements core operations for cryptographic key generation using an sbox and the [Galois Field](https://en.wikipedia.org/wiki/GF(2)) for bitwise arithmetic.
+
+*key functions include multiplication, finding inverses, circular bit shifts, and non-linear transformations.*
+
+### how it works?
+
+1. represents the primitive polynomial (0×11b) used in galois field arithmetic.
+
+2. calculates the multiplication of two numbers in the gf using bitwise operations and the primitive polynomial:
+$$
+\text{loop}(x, y, \text{acc}) = \begin{cases} \text{acc} & \text{if } y = 0 \\ \text{loop}(x \ll 1, y \gg 1, \text{acc} \oplus x) & \text{if } \text{y’s least significant bit is 1} \\ \text{loop}(x \ll 1, y \gg 1, \text{acc}) & \text{if } \text{y’s least significant bit is 0} \end{cases}
+$$
+
+3. computes the inverse of a number in the galois field using the extended euclidean algorithm.
+
+4. performs a circular left shift operation on a binary number:
+$$
+\begin{align*} \text{rotate\_left}(x, n) &= \text{result} \\ \text{n\_int} &= \text{to\_int}(n) \\ \text{shift\_amount} &= \text{to\_int}(8 - n) \\ \text{result} &= (x \ll n\_int) \,|\, (x \gg \text{shift\_amount}) \end{align*}
+$$
+
+5. applies an affine transformation used in the sbox for non-linearity:
+$$
+\begin{align*} \text{affine\_transformation}(x) &= \text{result} \\ \text{operations} &= [0, 1, 2, 3, 4, 5, 6, 7] \\ \text{b} &= 0×63 \\ \text{result} &= \text{fold\_left}(\text{operations}, b, \lambda \text{acc}, i \rightarrow (\text{bit} = (x \gg i) \& 1) \,?\, (\text{acc} \oplus (bit \ll i)) \,:\, \text{acc}) \end{align*}
+$$
+
+6. generates an sbox table by applying the affine transformation to a range of values:
+$$
+\begin{align*} \text{create\_sbox\_table}() &= \text{result} \\ \text{range} &= [0, 1, 2, \ldots, 255] \\ \text{result} &= \text{map}(\text{range}, \lambda i \rightarrow \text{inv} = (i = 0) \,?\, 0 \,:\, \text{gf\_inv}(i), \text{affine\_transformation}(\text{inv})) \end{align*}
+$$
+
+```ocaml
+module Sbox = struct
+  open Z
+
+  let primitive = of_int 0x11b
+  let gf_mul x y =
+    let rec loop x y acc =
+      if y = zero then acc
+      else
+        let acc = if (logand y one) <> zero then logxor acc x else acc in
+        let y = shift_right y 1 in
+        let x = shift_left x 1 in
+        if (logand x (of_int 0x100)) <> zero then
+          loop (logxor x primitive) y acc
+        else
+          loop x y acc
+    in loop x y zero
+
+  let gf_inv x =
+    let rec egcd a b =
+      if b = zero then (a, one, zero)
+      else
+        let q, r = div_rem a b in
+        let g, x, y = egcd b r in
+        (g, y, logxor x (gf_mul q y))
+    in
+    let g, x, _ = egcd x primitive in
+    if g = one then x else zero
+
+  let rotate_left x n =
+    let n_int = Z.to_int n in
+    let shift_amount = Z.to_int (Z.sub (Z.of_int 8) n) in
+    Z.logor (Z.shift_left x n_int) (Z.shift_right x shift_amount)
+
+  let affine_transformation x =
+    let operations = [0; 1; 2; 3; 4; 5; 6; 7] in
+    let b = of_int 0x63 in
+    List.fold_left (fun acc i ->
+      let bit = logand (shift_right x i) one in
+      logxor acc (shift_left bit i)
+    ) b operations
+
+  let create_sbox_table () =
+    let range = List.init 256 (fun i -> i) in
+    List.map (fun i ->
+      let inv = if i = 0 then zero else gf_inv (of_int i) in
+      affine_transformation inv
+    ) range
+end
+```

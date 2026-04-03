@@ -1,0 +1,101 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "octra",
+  "description": "Developer documentation for the Octra FHE blockchain platform.",
+  "colors": {
+    "primary": "#6196FF",
+    "light": "#6196FF",
+    "dark": "#4178E6"
+  },
+  "appearance": {
+    "default": "dark",
+    "strict": true
+  },
+  "styling": {
+    "eyebrows": "breadcrumbs"
+  },
+  "favicon": "/favicon.svg",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg",
+    "href": "/"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "git",
+        "href": "https://github.com/octra"
+      },
+      {
+        "label": "x",
+        "href": "https://x.com/octra"
+      },
+      {
+        "label": "discord",
+        "href": "https://discord.com/channels/1038740318255841280/1051631108745343058"
+      },
+      {
+        "label": "telegram",
+        "href": "https://t.me/octra_chat_en"
+      }
+    ]
+  },
+  "metadata": {
+    "timestamp": true
+  },
+  "contextual": {
+    "options": ["copy", "view"]
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "hidden": true,
+        "groups": [
+          {
+            "group": " ",
+            "pages": ["index"]
+          },
+          {
+            "group": "USER DOCS",
+            "pages": [
+              "user-docs/generate-wallet",
+              "user-docs/pre-client",
+              "user-docs/running-a-node"
+            ]
+          },
+          {
+            "group": "TECH DOCS",
+            "pages": [
+              {
+                "group": "HFHE",
+                "expanded": true,
+                "pages": [
+                  "tech-docs/hfhe/index",
+                  "tech-docs/hfhe/modular-arithmetic-over-hypergraphs-in-hfhe",
+                  {
+                    "group": "subtraction in hypergraph space",
+                    "pages": [
+                      "tech-docs/hfhe/subtraction-in-hypergraph-space/index",
+                      "tech-docs/hfhe/subtraction-in-hypergraph-space/hypergraph-stability-after-subtraction",
+                      "tech-docs/hfhe/subtraction-in-hypergraph-space/minimizing-deviations-in-hypergraph-matrices"
+                    ]
+                  },
+                  "tech-docs/hfhe/multiplication-of-integers",
+                  "tech-docs/hfhe/integer-division-and-range-narrowing-mechanics",
+                  "tech-docs/hfhe/hfhe-key-sharding",
+                  "tech-docs/hfhe/starting-vector-generation",
+                  "tech-docs/hfhe/sbox-module",
+                  "tech-docs/hfhe/transformation-mechanism",
+                  "tech-docs/hfhe/noise-basis-determination",
+                  "tech-docs/hfhe/noise-assessment-in-ciphertext-elements"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

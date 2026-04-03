@@ -1,0 +1,109 @@
+---
+title: noise assessment in ciphertext elements
+description: the described noise assessment and reduction methods are an experimental approach to manage noise in hypergraph space ciphertexts with a redefined vector basis.
+---
+
+noise elements of $C$ in HFHE are presented in the form of a matrix $\Omega = (\omega_{ij}; i = 1, \ldots, r)$ where each element $\omega_{ij}$ is a noise determinant for all elements of $C'$.
+
+determining the moment of overflow of the ciphertext vector with noise elements in $\Omega$ is determined through the inequality:
+
+$$
+\Delta(\Omega) = \left( \sum_{i=1}^{r} \sum_{j=1}^{r} \omega_{ij}^2 \cdot \left[ f\left(\sum_{k=1}^{r} \omega_{ik}\right) - g\left(\sum_{l=1}^{r} \omega_{lj}\right) \right]^2 \right)^{\frac{1}{2}} > b \cdot \left( \sum_{i,j=1}^r \omega_{ij}^2 \right)^{\alpha}
+$$
+
+```ocaml
+(* other part *)
+
+
+let delta_noise c r b alpha =
+  let sum_square_noise row =
+    Array.fold_left (fun acc noise -> acc +. (noise ** 2.)) 0. row
+  in
+  let total_noise_power =
+    Array.fold_left (fun acc row -> acc +. sum_square_noise row) 0. c
+  in
+  let row_noise_sums =
+    Array.map (Array.fold_left (+.) 0.) c
+  in
+  let col_noise_sums =
+    let t m =
+      Array.init (Array.length m.(0)) (fun i ->
+          Array.init (Array.length m) (fun j -> m.(j).(i))
+        )
+    in
+    t c |> Array.map (Array.fold_left (+.) 0.)
+  in
+  let diff_noise_power i j =
+    let d = (f row_noise_sums.(i) -. g col_noise_sums.(j)) ** 2. in
+    c.(i).(j) ** 2. *. d
+  in
+  let sum_diff_noise_power =
+    Array.fold_left
+      (fun acc i ->
+         Array.fold_left
+           (fun acc j -> acc +. diff_noise_power i j)
+           acc
+           (Array.init r (fun x -> x))
+      )
+      0.
+      (Array.init r (fun x -> x))
+  in
+  let noise_metric = sqrt sum_diff_noise_power in
+  let threshold = b *. (total_noise_power ** alpha) in
+  noise_metric > threshold
+
+let gen_mat n m =
+  let rec row m acc =
+    if m = 0 then acc
+    else row (m - 1) (Random.float 10. :: acc)
+  in
+  let rec matrix_rows n acc =
+    if n = 0 then acc
+    else matrix_rows (n - 1) (Array.of_list (row m []) :: acc)
+  in
+  Array.of_list (matrix_rows n [])
+
+let apply_to_mat matrix f =
+  Array.map (Array.map f) matrix
+
+let apply_to_mat_rows matrix f =
+  Array.map (fun row -> Array.map f row) matrix
+
+let apply_to_mat_cols matrix f =
+  let transpose matrix =
+    Array.init (Array.length matrix.(0)) (fun i ->
+        Array.init (Array.length matrix) (fun j -> matrix.(j).(i))
+      )
+  in
+  let transposed_matrix = transpose matrix in
+  apply_to_mat_rows transposed_matrix f
+
+let apply_to_mat_elems matrix f =
+  apply_to_mat_rows matrix (fun x -> apply_to_mat_cols x f)
+```
+
+```ocaml
+[|[|5.62085760000828749; 3.64599873975302824; 0.732020911345016|];
+
+[|1.6030584666173513; 9.89430673142578776; 8.60497981031593717|];
+
+[|6.03989915708647551; 1.04701452775957016; 5.56547340832736914|]|]
+```
+
+to effectively process vectors and carry out operations of any kind, it is necessary to maintain the noise level within 35% of the total vector size. $NC_{ij}$ is noise component associated between elements of the hypergraph with a pointer to the area with the ciphertext:
+
+$$
+\text{if } \sqrt{\frac{1}{r \times m} \sum_{i=1}^{r} \sum_{j=1}^{m} \left( NC_{ij} - 0.35 \times d_{v_{ij}} \right)^2} > 0.35, \text{ bootstrapping is required.}
+$$
+
+after the bootstrapping procedure, a re-evaluation occurs to determine the noise elements in the ciphertext vector:
+
+$$
+NC_n' = \sqrt{\sum_{i,j=1}^{r-1} \left( \frac{1}{A} \sum_{k,l=1}^{m} \left( \psi(\omega_{ij}, C_{kl}) \right) \prod_{i,j=1}^{r-1} \left( \sqrt{\omega_{ij} + 1} \cdot e^{-bn \left( \omega_{ij} - \frac{1}{r-1} \sum_{l=1}^{r-1} \omega_{il} \right)^2} \right) \right)} = O_r \left(\frac{1}{\sqrt{n}} \int_{-\infty}^{+\infty} e^{-\frac{b}{2} x^2} dx\right)
+$$
+
+estimation methodology after bootstrapping is done by calculating the interaction between the elements of the noise matrix and the elements of the ciphertext matrix through the consistency function, expressed through the internal sum.
+
+the product applies this analysis to the entire hypergraph for all pairs of elements, the exponential function determines the distribution of noise by determining deviations from the reference average level.
+
+asymptotic behavior is brought to explicit form through an integral (a continuum analogue of a sum with an analysis of the upper limit of complexity).

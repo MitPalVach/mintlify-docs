@@ -1,0 +1,57 @@
+---
+title: transformation mechanism
+description: to initially set up a data area in HFHE, it is necessary to convert any initialization value from normal data to a special version of the data with certain property
+---
+
+for acquiring the essential state of data, it's required to parse each bit of the input vector through a transitive system of states (they change dynamically) via the mechanism of transition. Each subsequent bit is transformed with account of previous series and the general indicator of state (so that all values are in a uniform field).
+
+### basic principles
+
+the transformation is achieved through a system of transitions between states. For each input vector value, calculations are made based on its value and current state.
+
+$P$ is position, which is determined by dividing the value from the states array. Where $S$ is the current state, in $SC$ it is an array with transitions for each state.
+
+$$
+P = \frac{\text{SC}[S]}{2^{16}}
+$$
+
+a method for updating the states of an array of states $SC[S]$ through the current state $S$, the value of vector $B$ and the previous received position $P$. $GT[N]$ determines the value that scales the change in state.
+
+$$
+\text{SC}[S] = \text{SC}[S] + 1 + ((B \ll 18) - P) \times \text{GT}[n]
+$$
+
+the new state of $S’$ is determined through a bit or between shifting the current state of $S$ by 8 positions to the left and the value of the state from the array $St[S]$.
+
+$$
+S' = (S \ll 8) \, \text{or} \, \text{St}[S]
+$$
+
+the new state value in the $St[S]$ array is updated by adding the current value from the vector to it and then performing a bitwise and operation on the number 255 (limiting the result to 8 bits).
+
+$$
+\text{St}[S] = (\text{St}[S] + \text{St}[S] + B) \, \text{and} \, 255
+$$
+
+the control vector (always needed for comparison with the reference) $C$ is calculated based on the current ranges $VX$ (start value) and $VY$ (end value), as well as the position of $P$.
+
+$MASK$ or $0xffff$ is used to obtain the lower 16 bits from the $VY - VX$ difference so that it can then divide by $2^{16}$.
+
+thus, we obtain the residual shares of the difference $VY - VX$ in the 16-bit area.
+
+$$
+C = VX + \left( \frac{VY - VX}{2^{16}} \right) \times P + \left( \frac{(VY - VX) \, \text{and} \,  MASK}{2^{16}} \right) \times P
+$$
+
+this approach to transformation allows us to obtain the necessary representation of the data vector that is used in arithmetic methods on hypergraphs (since the standard representation of the information vector does not allow this)./
+
+### performance
+
+*For the test vector:*
+
+```hex
+59 74 20 08 57 21 4d 69 4d 04 59 1a c2 84 35 c2 b5 c2 8d c2 bd 54 c3 b8 6b 57 c2 ad c3 ba 20 c2 95 c2 82 c3 ad c3 9b c2 bd c2 9d c2 b6 6e 17 7b c2 85 44 c2 89 40 c3 80 c2 a5 04 c3 8a 56 c2 ac 42 c2 85 c2 8b c2 95 52 6a c2 b7 72 c3 a9 42 c3 b4 c2 bc c2 92 c3 90 c3 8e c3 b0 c2 a1 12 1a 20 45 76 20 01 c3 b8 50 39 4d 20 20 20 20 c2 bf 29 c2 a7 c3 9d 50 6a 77 10 c2 80 c3 9f 0c c3 9f c2 8e c2 b2 c3 a8 14 10 c2 ae c3 82 c2 b7 69 44 31 65 69 10 11 55 32 46 6f c3 a6 79 05 1e 69 12 c2 a7 0c 0f c2 84 68 15 c2 a3 46 42 c2 b1 4f 40 7d c2 80 c3 a0 61 c2
+```
+
+*Transformation takes: 0.000374 s.*
+*RAM used per operation: 2216 bytes.*

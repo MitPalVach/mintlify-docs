@@ -1,0 +1,114 @@
+---
+title: hypergraph stability after subtraction
+description: the presented methods for assessing stability are applicable only to a hypergraph with a specific basis through the mechanism of redefining the original vectors.
+---
+
+cryptographic structures on hypergraphs cannot be adequately represented by ordinary graphs. To work with these bases, we will define the key characteristics and methods that we will rely on in this and subsequent publications.
+
+<Note>
+
+	methods from combinatorics, probability estimation (higher moments of distribution), dispersion analysis in stability
+	assessment, and logarithmic normalization to avoid excessively large numbers are involved.
+
+	the methods described in this document are applicable only to structure assessment after subtraction, for all other
+	operations, a specific evaluation basis is described.
+
+</Note>
+
+to start it is necessary to consider the sum under the logarithm:
+
+$$
+\sum_{\{i_1, i_2, i_3, i_4\}=4, \{j_1, j_2, j_3, j_4\}=4} \left(\frac{1}{r^2} + \epsilon_{i_1 j_1}\right) \left(\frac{1}{r^2} + \epsilon_{i_2 j_2}\right) \left(\frac{1}{r^2} + \epsilon_{i_3 j_3}\right) \left(\frac{1}{r^2} + \epsilon_{i_4 j_4}\right)
+$$
+
+simplify the sum:
+
+$$
+= \frac {r^2 (r-1)^2 (r-2)^2 (r-3)^2}{r^8} + 4 \sum_{i_1, j_1=1}^{r} \epsilon_{i_1 j_1} \frac{(r-1)^2 (r-2)^2 (r-3)^2}{r^6}\ +
+$$
+
+$$
++\ 6 \sum_{\{i_1, i_2\}=2, \{j_1, j_2\}=2} \epsilon_{i_1 j_1} \epsilon_{i_2 j_2} \frac{(r-2)^2 (r-3)^2}{r^4} + 4 \sum_{\{i_1, i_2, i_3\}=3, \{j_1, j_2, j_3\}=3} \epsilon_{i_1 j_1} \epsilon_{i_2 j_2} \epsilon_{i_3 j_3} \frac{(r-3)^2}{r^2}\ +
+$$
+
+$$
++ \sum_{\{i_1, i_2, i_3, i_4\}=4, \{j_1, j_2, j_3, j_4\}=4} \epsilon_{i_1 j_1} \epsilon_{i_2 j_2} \epsilon_{i_3 j_3} \epsilon_{i_4 j_4}
+$$
+
+using the results of the proof:
+
+$$
+\sum_{i,j=1}^{r} \epsilon_{ij} = 0; \quad \sum_{\{i_1, i_2\}=2, \{j_1, j_2\}=2} \epsilon_{i_1 j_1} \epsilon_{i_2 j_2} = \sum_{i,j=1}^{r} \epsilon_{ij}^2; \quad \sum_{\{i_1, i_2, i_3\}=3, \{j_1, j_2, j_3\}=3} \epsilon_{i_1 j_1} \epsilon_{i_2 j_2} \epsilon_{i_3 j_3} = 4 \sum_{i,j=1}^{r} \epsilon_{ij}^3;
+$$
+
+$$
+\sum_{\{i_1, i_2, i_3, i_4\}=4, \{j_1, j_2, j_3, j_4\}=4} \epsilon_{i_1 j_1} \epsilon_{i_2 j_2} \epsilon_{i_3 j_3} \epsilon_{i_4 j_4} = 3 \left( \sum_{i,j=1}^{r} \epsilon_{ij}^2 \right)^2 - 18 \sum_{i,j=1}^{r} \epsilon_{ij}^2 \epsilon_{i_1 j_1}^2
+$$
+
+**based on these results we will obtain confirmation of the correctness of formula $\gamma(\Upsilon)$**
+
+<p style={ { fontStyle: 'italic' } }>essential components need to be identified.</p>
+
+quadratic distribution effects:
+
+$$
+1 + 6 \left( \frac{r}{r-1} \right)^2 \sum_{i,j=1}^{r} \epsilon_{ij}^2
+$$
+
+determination of cubic effects that can significantly affect distribution **(it is important to maintain the principle of normal distribution for all elements including noise components)**:
+
+$$
+16 \frac{r^4}{(r-1)^2 (r-2)^2} \sum_{i,j=1}^{r} \epsilon_{ij}^3
+$$
+
+interaction between sub edges through quadratic sums:
+
+$$
+3 \frac{r^6}{((r-1)(r-2)(r-3))^2} \left( \sum_{i,j=1}^{r} \epsilon_{ij}^2 \right)^2
+$$
+
+final definition:
+
+$$
+\gamma(\Upsilon) = c \ln \left( 1 + 6 \left( \frac{r}{r-1} \right)^2 \sum_{i,j=1}^{r} \epsilon_{ij}^2 + 16 \frac{r^4}{(r-1)^2 (r-2)^2} \sum_{i,j=1}^{r} \epsilon_{ij}^3\ +\right.
+$$
+
+$$
++\ 3 \frac{r^6}{((r-1)(r-2)(r-3))^2} \left( \sum_{i,j=1}^{r} \epsilon_{ij}^2 \right)^2 - 18 \frac{r^6}{((r-1)(r-2)(p-3))^2} \sum_{i, j_1,j_3=1}^{r} \epsilon_{ij_1}^2 \epsilon_{ij_3}^2\ +
+$$
+
+$$
++ 36 \frac{r^6}{((r-1)(p-2)(p-3))^2} \sum_{i,j=1}^{p} \epsilon_{ij}^4 + 6 \frac{r^6}{((p-1)(p-2)(p-3))^2} \sum_{i_1,j_3,j_1,j_3=1}^{p} \epsilon_{i_1 j_1} \epsilon_{i_1 j_3} \epsilon_{i_1 j_3} \epsilon_{i_1 j_3})
+$$
+
+implementation for clarity (without optimization):
+
+```ocaml
+let sum_log hg n r =
+  let eps = Lst.mapi (fun _ row -> Lst.mapi (fun _ a -> eps a n r) row) hg in
+  let sum_eps k =
+    let flat_eps = List.flatten eps in
+    List.fold_left (fun acc e -> acc +. (e ** float_of_int k)) 0.0 flat_eps
+  in
+  let sum_cross () =
+    List.fold_left (fun acc row -> acc +. List.fold_left (fun acc' e -> acc'
+    +. (e ** 2.0)) 0.0 row) 0.0 eps
+  in
+  let r_f = float_of_int r in
+  let cf = (r_f ** 6.0) /. ((r_f -. 1.0) ** 2.0 *. (r_f -. 2.0) *. (r_f -. 3.0)) ** 2.0 in
+  1.0 +.
+  6.0 *. ((r_f /. (r_f -. 1.0)) ** 2.0) *. sum_eps 2 +.
+  16.0 *. ((r_f ** 4.0) /. ((r_f -. 1.0) ** 2.0 *. (r_f -. 2.0) ** 2.0)) *. sum_eps 3 +.
+  3.0 *. cf *. (sum_eps 2 ** 2.0) -.
+  18.0 *. cf *. sum_cross () +.
+  36.0 *. cf *. sum_eps 4 +.
+  6.0 *. cf *. sum_cross ()
+```
+
+<Note>
+
+	preserving the structure of a hypergraph after a series of subtraction operations does not lead to a change in the
+	structure, the immutability of the hypergraph allows us to clearly understand that even after a series of large
+	changes and noise, this does not lead to the loss of the ability to perform subtractions, as was proven earlier.
+
+</Note>

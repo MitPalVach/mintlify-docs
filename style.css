@@ -1,0 +1,203 @@
+/* Octra: zero border-radius across the docs UI */
+body *,
+body *::before,
+body *::after {
+  border-radius: 0 !important;
+}
+
+/* One background for gutters + content (no gray bands at the sides) */
+html {
+  /* Reserve space for the vertical scrollbar so the layout doesn’t jump left/right
+     when switching between short and long pages (Windows / classic scrollbars). */
+  scrollbar-gutter: stable;
+}
+
+@supports not (scrollbar-gutter: stable) {
+  html {
+    overflow-y: scroll;
+  }
+}
+
+html,
+body {
+  background-color: #000000 !important;
+  background-image: none !important;
+}
+
+#__next,
+#__mintlify,
+#panel,
+.panel,
+#body-content,
+.body-content,
+#content-side-layout,
+.content-side-layout,
+[data-component="panel"],
+[data-component="body-content"],
+[data-component="content-side-layout"] {
+  background-color: #000000 !important;
+  background-image: none !important;
+}
+
+main,
+#root {
+  background-color: #000000 !important;
+}
+
+/* Octra-style: black shell, blue accents, lowercase nav links, muted section labels */
+#navbar,
+#header {
+  background-color: #000000 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+#sidebar,
+#sidebar-content {
+  background-color: #000000 !important;
+}
+
+/* Sidebar: narrow scrollbar (WebKit / Chromium) */
+#sidebar ::-webkit-scrollbar,
+#sidebar-content ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+#sidebar ::-webkit-scrollbar-track,
+#sidebar-content ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#sidebar ::-webkit-scrollbar-thumb,
+#sidebar-content ::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.22);
+  border: none;
+}
+
+#sidebar ::-webkit-scrollbar-thumb:hover,
+#sidebar-content ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.38);
+}
+
+/* Sidebar: thin scrollbar (Firefox) */
+#sidebar,
+#sidebar-content,
+#sidebar [data-radix-scroll-area-viewport],
+#sidebar-content [data-radix-scroll-area-viewport] {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+#content-area,
+#content-container {
+  background-color: #000000 !important;
+}
+
+/* Page title + in-article headings → lowercase like docs.octra.org */
+.page-title,
+.mdx-content h1,
+.mdx-content h2,
+.mdx-content h3 {
+  text-transform: lowercase;
+}
+
+/* Uppercase muted sidebar section headers */
+.sidebar-group-header {
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  opacity: 0.55;
+}
+
+/* Callout panel — sharp corners */
+.callout {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.navbar-link a {
+  text-transform: lowercase;
+  font-size: 0.875rem;
+}
+
+/* Hide right-hand table of contents column */
+#table-of-contents,
+#table-of-contents-layout,
+.table-of-contents-layout,
+#toc,
+[data-component="table-of-contents"],
+[data-component="table-of-contents-layout"] {
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  overflow: hidden !important;
+}
+
+/* Main + content column uses full width without the TOC gutter */
+#content-side-layout,
+.content-side-layout,
+#content-container {
+  max-width: 100% !important;
+}
+
+/* Content + TOC grid: single column so the main text spans the old TOC width */
+#content-area div:has(> #table-of-contents),
+#content-container div:has(> #table-of-contents),
+#content-area div:has(> [id="table-of-contents"]),
+#content-container div:has(> [id="table-of-contents"]) {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+/*
+ * Block math: wrappers often use `overflow: auto`, which shows a vertical scrollbar
+ * even when only the width overflows. Pin Y to hidden and allow X-only scrolling.
+ */
+#content-area *:has(.katex-display),
+#content-container *:has(.katex-display),
+main *:has(.katex-display),
+.mdx-content *:has(.katex-display),
+.prose *:has(.katex-display),
+article *:has(.katex-display) {
+  overflow-y: hidden !important;
+  overflow-x: auto !important;
+  max-height: none !important;
+  height: auto !important;
+}
+
+#content-area *:has(mjx-container[display="true"]),
+#content-container *:has(mjx-container[display="true"]),
+main *:has(mjx-container[display="true"]),
+.mdx-content *:has(mjx-container[display="true"]),
+.prose *:has(mjx-container[display="true"]),
+article *:has(mjx-container[display="true"]) {
+  overflow-y: hidden !important;
+  overflow-x: auto !important;
+  max-height: none !important;
+  height: auto !important;
+}
+
+#content-area .katex,
+#content-container .katex,
+.mdx-content .katex,
+.mdx-content .katex-display,
+.mdx-content .katex-html,
+.mdx-content mjx-container,
+.mdx-content mjx-math {
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+/* Radix ScrollArea around math (if present) */
+[data-radix-scroll-area-viewport]:has(.katex-display),
+[data-radix-scroll-area-viewport]:has(mjx-container[display="true"]),
+[data-radix-scroll-area-root]:has(.katex-display),
+[data-radix-scroll-area-root]:has(mjx-container[display="true"]) {
+  overflow-y: hidden !important;
+  overflow-x: auto !important;
+  max-height: none !important;
+  height: auto !important;
+}

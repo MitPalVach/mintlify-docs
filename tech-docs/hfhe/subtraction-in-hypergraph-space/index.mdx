@@ -1,0 +1,294 @@
+---
+title: subtraction in hypergraph space
+description: the presented method belongs to the HFHE scheme and is one of its parts that implements a mechanism that supports all types of mathematical operations on encrypted data.
+---
+
+### a brief introduction to advanced math operations on hypergraphs
+
+<Note>
+
+	<strong>
+		for simplicity, the example uses two vectors of 32 bytes each and the key size is limited to 4
+		megabytes.
+	</strong>
+
+	the size of the vectors is chosen for clarity. Optimization is excluded, and checks for the completeness of the data
+	are also excluded, since the size of the vectors can be estimated directly by comparison. The mechanism for
+	transforming data into the «hypergraph space» was described earlier.
+
+</Note>
+
+if we assume that a single vector with preset settings has been created for the computing base, then the simplest subtraction mechanism can be described as indicated in the code block below.
+
+```ocaml
+let hypergraph_subtract hg1 hg2 =
+  let xor_result = hypergraph_xor hg1 hg2 in
+  let and_result = hypergraph_and hg1 hg2 in
+  let not_hg1 = hypergraph_not hg1 in
+  let part1 = hypergraph_and xor_result (hypergraph_not and_result) in
+  let part2 = hypergraph_and (hypergraph_not hg1) not_hg1 in
+  hypergraph_xor part1 part2
+```
+
+this code fragment allows us to see the subtraction method between two cipher vectors. The description of the subtraction method comes down to one simple formula:
+
+$$
+\begin{align*}
+\text{Sub}(H_{G_1}, H_{G_2}) = & (H_{G_1} \oplus H_{G_2}) \& (\overline{H_{G_1}} \& \overline{H_{G_2}}) \\
+& \oplus ((H_{G_1} \oplus H_{G_2}) \& \overline{(H_{G_1} \& H_{G_2})})
+\end{align*}
+$$
+
+the transformed hypergraphs are obtained by directly inverting each bit of the ciphertext. The resulting hypergraph is obtained by subtracting two encryption vectors with a predefined base key.
+
+implementation of the subtraction method is presented as follows:
+
+```ocaml
+let hypergraph_and hg1 hg2 =
+  let row_length = List.length (List.hd hg1) in
+  List.mapi (fun i row1 ->
+    List.mapi (fun j a ->
+      let b = List.nth (List.nth hg2 i) j in
+      let a_int = BitSet.to_int a in
+      let b_int = BitSet.to_int b in
+      let result_int = (a_int * b_int) mod 256 in
+      BitSet.of_int result_int
+    ) row1
+  ) hg1
+
+let hypergraph_or hg1 hg2 =
+  let row_length = List.length (List.hd hg1) in
+  List.mapi (fun i row1 ->
+    List.mapi (fun j a ->
+      let b = List.nth (List.nth hg2 i) j in
+      let a_int = BitSet.to_int a in
+      let b_int = BitSet.to_int b in
+      let result_int = (a_int + b_int - (a_int * b_int / 256)) mod 256 in
+      BitSet.of_int result_int
+    ) row1
+  ) hg1
+
+let hypergraph_xor hg1 hg2 =
+  let row_length = List.length (List.hd hg1) in
+  List.mapi (fun i row1 ->
+    List.mapi (fun j a ->
+      let b = List.nth (List.nth hg2 i) j in
+      let a_int = BitSet.to_int a in
+      let b_int = BitSet.to_int b in
+      let result_int = (a_int + b_int - 2 * (a_int * b_int / 256)) mod 256 in
+      BitSet.of_int result_int
+    ) row1
+  ) hg1
+
+let hypergraph_not hg =
+  List.map (List.map BitSet.not_) hg
+
+let hypergraph_subtract hg1 hg2 =
+  let xor_result = hypergraph_xor hg1 hg2 in
+  let and_result = hypergraph_and hg1 hg2 in
+  let not_hg1 = hypergraph_not hg1 in
+  let part1 = hypergraph_and xor_result (hypergraph_not and_result) in
+  let part2 = hypergraph_and (hypergraph_not hg1) not_hg1 in
+  hypergraph_xor part1 part2
+```
+
+### hypergraph stability assessment
+
+the resulting hypergraph obtained after the transformations retains its stability. It can be empirically confirmed.
+
+to confirm the stability of the resulting hypergraph, it is necessary to construct an adjacency matrix, then calculate the first and second moments and find the final variance. Low variance values indicate a coherent data structure.
+
+1. construction of an adjacency matrix:
+    $$
+    \begin{align*}
+    A_{\text{Sub}}(H_{G_1}, H_{G_2}) = & (A_{H_{G_1}} \oplus A_{H_{G_2}}) \& (\overline{A_{H_{G_1}}} \& \overline{A_{H_{G_2}}}) \\
+    & \oplus ((A_{H_{G_1}} \oplus A_{H_{G_2}}) \& \overline{(A_{H_{G_1}} \& A_{H_{G_2})}})
+    \end{align*}
+    $$
+
+2. determine the $Y_n$ (number of strong balanced colorings) of hypergraph $Sub(H_{G_1}, H_{G_2})$
+    $$
+    Y_n = \text{} \, \text{Sub}(H_{G_1}, H_{G_2})
+    $$
+
+3. calculation of the first moment:
+    $$
+    E[Y_n] = \sum_{A} \frac{n!}{((n/r)!)^r} \left( \frac{r(r-1)(r-2)(r-3)}{r^4} + \frac{6r(r-1)(r-2)}{r^3 n} + \frac{10r(r-1)}{r^2 n^2} + \frac{1}{n^3} \right)^m
+    $$
+
+4. calculation of the second moment:
+    $$
+    E[Y_n^2] = O_r \left( (E[Y_n])^2 n^{r-1/2} \sum_A \frac{1}{\prod_{i,j=1}^{r} \sqrt{a_{ij} + 1}} \exp\left(n(\gamma(A) - \phi(A))\right) \right)
+    $$
+    where:
+    $$
+    \phi(A) = \sum_{i,j=1}^{r} \frac{a_{ij}}{n} \ln(r^2 a_{ij})
+    $$
+    and:
+    $$
+    \gamma(A) = c \ln \left( \left[ \frac{r^3}{(r-1)(r-2)(r-3)} \right]^2 \sum_{\{i_1, i_2, i_3, i_4\}=4, \{j_1, j_2, j_3, j_4\}=4} \frac{a_{i_1 j_1} a_{i_2 j_2} a_{i_3 j_3} a_{i_4 j_4}}{n^4} \right)
+    $$
+    Introducing $\epsilon_{ij} = \frac{a_{ij}}{n} - \frac{1}{r^2}$, where $i, j = 1, \ldots, r$
+    then:
+    $$
+    \phi(A) = \phi(\Upsilon) = \sum_{i,j=1}^{r} \left(\frac{1}{r^2} + \epsilon_{ij}\right) \ln(1 + r^2 \epsilon_{ij})
+    $$
+    from this, it follows that:
+    $$
+    \gamma(A) = \gamma(\Upsilon) = c \ln \left( \left[ \frac{r^3}{(r-1)(r-2)(r-3)} \right]^2 \sum_{\{i_1, i_2, i_3, i_4\}=4, \{j_1, j_2, j_3, j_4\}=4} \left(\frac{1}{r^2} + \epsilon_{i_1 j_1}\right) \right.
+    $$
+    $$
+    \left. \left(\frac{1}{r^2} + \epsilon_{i_2 j_2}\right) \left(\frac{1}{r^2} + \epsilon_{i_3 j_3}\right)\left(\frac{1}{r^2} + \epsilon_{i_4 j_4}\right) \right)
+    $$
+
+<Note>
+
+	the structure and clustering of the hypergraph after math transformations, adding new ciphertext elements, and the
+	values of various data remains unchanged despite the progressive increase in noise interference for each operation.
+
+	a detailed explanation will be provided in a separate article.
+
+</Note>
+
+5. variance Calculation for $Y_n$
+    $$
+    \text{Var}(Y_n) = E[Y_n^2] - (E[Y_n])^2
+    $$
+
+### benchmarks and tests
+
+to illustrate, consider two 32-byte vectors. Add a key and perform homomorphic subtraction on a moderately noisy hypergraph with a predefined noise level:
+
+```ocaml
+let vector_1 = [
+  0x59; 0x74; 0x20; 0x08; 0x57; 0x21; 0x4d; 0x69;
+  0x4d; 0x04; 0x59; 0x1a; 0xc2; 0x84; 0x35; 0xc2;
+  0xb5; 0x6f; 0x2c; 0x9a; 0x7b; 0xff; 0xde; 0x3a;
+  0x17; 0xe5; 0x8b; 0x21; 0xa4; 0xd0; 0x3e; 0x90;
+  0x49
+] in
+
+let vector_2 = [
+  0x35; 0x44; 0x15; 0x09; 0x67; 0x12; 0x3d; 0x59;
+  0x3d; 0x14; 0x49; 0x2a; 0xb2; 0x94; 0x25; 0xa2;
+  0xa5; 0x1b; 0x6e; 0x88; 0x7c; 0x44; 0x31; 0xd2;
+  0x6a; 0x5d; 0x8f; 0x93; 0x71; 0x58; 0xb7; 0x0e;
+  0x2b
+] in
+```
+
+let's define the basis for computation as follows:
+
+```ocaml
+let init_set_count mod_val =
+  let set_count = Array.make mod_val 0 in
+  for i = 0 to mod_val - 1 do
+    let mod_val = (i land 1) * 2 + (i land 2) + (i lsr 2 land 1) + (i lsr 3 land 1) +
+                  (i lsr 4 land 1) + (i lsr 5 land 1) + (i lsr 6 land 1) + (i lsr 7 land 1) + 3 in
+    set_count.(i) <- (mod_val lsl 28) lor 6
+  done;
+  set_count
+
+let next_position set_count previous_set =
+  assert (previous_set >= 0 && previous_set < Array.length set_count);
+  set_count.(previous_set) lsr 16
+
+let spectral set_count previous_set bit_cipher limit hyper_base =
+  let mod_val = set_count.(previous_set) land 255 in
+  let next_pos = set_count.(previous_set) lsr 14 in
+  if mod_val < limit then
+    let updated_count =
+      set_count.(previous_set) +
+      (((bit_cipher lsl 18) - next_pos) * hyper_base.(mod_val) land 0xffffff00) in
+    Array.copy set_count |> fun new_count ->
+    new_count.(previous_set) <- updated_count;
+    new_count
+  else
+    set_count
+
+let next_position_hyp previous_set current_set sub_graph =
+  sub_graph |> next_position (previous_set lsl 8 lor current_set.(previous_set))
+
+let spectral_hyp previous_set current_set bit_cipher sub_graph =
+  sub_graph |> spectral previous_set bit_cipher 90 |> fun new_count ->
+  let indirect_graph = ref current_set.(previous_set) in
+  indirect_graph := (!indirect_graph + !indirect_graph + bit_cipher) land 255;
+  let new_previous_set = (previous_set + previous_set + bit_cipher) land 255 in
+  new_count, new_previous_set
+
+let hypergraph_processor () =
+  let current_set = Array.init 256 (fun _ -> 0x66) in
+  let sub_graph = init_set_count 0x10000 in
+  let rec next_position_hyp_rec previous_set =
+    next_position_hyp previous_set current_set sub_graph |> fun next_pos ->
+    next_position_hyp_rec next_pos
+  in
+  let rec spectral_hyp_rec previous_set =
+    spectral_hyp previous_set current_set sub_graph |> fun (new_count, new_previous_set) ->
+    spectral_hyp_rec new_previous_set;
+    new_count
+  in
+  next_position_hyp_rec, spectral_hyp_rec
+```
+
+preparing the key:
+
+```ocaml
+let generate_ZRH_key start_vector flag size =
+  let input = start_vector ^ string_of_bool flag in
+  let input_bytes = Cs.of_string input in
+  let rec hash_iteration acc count =
+    if count = 0 then acc
+    else
+      let hash = Hash.SHA512.hmac ~key:input_bytes (Cs.of_string acc) in
+      hash_iteration (Cs.to_string (Hash.SHA512.digest hash)) (count - 1)
+  in
+  let final_hash = hash_iteration "" 1000 in
+  let rec extend_key acc current_size =
+    if current_size >= size then acc
+    else extend_key (acc ^ final_hash) (current_size + 64)
+  in
+  let extended_key = extend_key "" 0 in
+  String.sub extended_key 0 size
+
+let key_size = 4 * 1024 * 1024
+let ZRH_key = generate_ZRH_key start_vector flag key_size
+```
+
+<Warning>
+
+	subtraction and division (will be provided separately) are the most complex and resource intensive operations.
+
+</Warning>
+
+after passing the vector values and performing subtraction, we obtained the following results:
+
+```txt
+Encryption of vector 1 took: 0.00136 seconds
+After encrypting vector 1 - Memory usage: 93.64 MB
+
+Encryption of vector 2 took: 0.0015375 seconds
+After encrypting vector 2 - Memory usage: 91.12 MB
+
+Encrypted result: be bf f6 f7 3e 37 76 bf dc fd 9e bf 4c 6d 0e
+df e7 e7 ed ed f7 ff fd e5 21 25 6b 6f b5 b9 ff 23 3b 1e 73 56
+bf 92 f7 3a f7 f3 bf bb f3 ff bb f7 fe ff fe ff fe ff fe ff f5
+f4 bf be 75 7c 3f f6 e3 e6 eb ee 77 7a 7f e2 f9 fd bb bf ed e9
+af fb eb ef e3 e7 ff f3 f7 eb dc fd 96 b7 dc f5 96 df 4b 6e 43
+66 df f2 d7 4a d7 f7 dd fd 57 7f 5d d5 f9 fc b3 b6 fd f0 b7 fa
+f4 f1 fe fb f0 fd fa f7 ee ef ae af fe ff be ef ae 8f ee cf 3e
+
+Decryption took: 0.00118917 seconds
+After decryption - Memory usage: 112.07 MB
+
+Decrypted result: 24 30 0b ffffffff fffffff0 0f 10 10 10 fffffff0 10 fffffff0 10 fffffff0 10 20 10 54 ffffffbe 12 ffffffff bb ad ffffff68 ffffffad 88 fffffffc ffffff8e 33 78 ffffff87 82 1e
+
+Program ended with exit code: 0
+```
+
+<Note>
+
+	the assessment of the resource efficiency of the described mathematical method used in the octra code remains at the
+	discretion of the readers.
+
+</Note>

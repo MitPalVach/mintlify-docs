@@ -1,0 +1,200 @@
+---
+title: integer division and range narrowing mechanics
+description: first, it should be determined that a direct division operation is impossible. To obtain the quotient, a multi-step mechanism should be used.
+---
+
+in the integer division scheme, we define this operation as an equation in a multidimensional space $H$, in which the main goal is to determine the cipher quotient hyperedge $\mathbf{e}_c$ from the dividend hyperedge $\mathbf{e}_a$ and the divisor hyperedge $\mathbf{e}_b$.
+
+to simplify, we can define division as an operator equation:
+
+$$
+F(\mathbf{e}_c) = \Gamma_\epsilon(H_a) - \Gamma_\epsilon(H_b) \odot \mathbf{e}_c = \mathbf{0}
+$$
+
+<Note>
+
+	it is worth clarifying what each element of this equation means:
+
+	- $\Gamma_\epsilon(H_a)$ and $\Gamma_\epsilon(H_b)$, are incidence matrices with noise;
+
+	- $\odot $, a linear transformation that inverts the influence of $ \Gamma_\epsilon(H_b) $ on $ \mathbf{ e }_c $,
+	which is constructed using the Moore–Penrose inverse.
+
+</Note>
+
+to solve the division problem, it is necessary to define the mechanics of range narrowing as:
+
+$$
+\mathbf{e}_c \in \mathcal{R} = \left\{ \mathbf{e} \in \mathbb{R}^n \mid \mathbf{0} \leq \mathbf{e} \leq \mathbf{1} \right\}
+$$
+
+this is done to ensure that the quotient hyperedge $\mathbf{e}_c$ remains within the ranges of $\mathcal{R}$.
+
+the next step is to initialize the cipher hyperedge and then define the inverse operator for the incidence matrix of the divisor.
+
+cipher hyperedges with cubic noise elements:
+
+$$
+\mathbf{e}_a = \Gamma_\epsilon(H_a) + \boldsymbol{\epsilon}_a^3, \quad \mathbf{e}_b = \Gamma_\epsilon(H_b) + \boldsymbol{\epsilon}_b^3
+$$
+
+where $\boldsymbol{\epsilon}_a^3$ and $\boldsymbol{\epsilon}_b^3$ are the cubic noise vectors added to $H_a$ and $H_b$.
+
+also introduce regularization parameters to reduce the noise increase due to small singular values at the points:
+
+$$
+\Gamma_\epsilon(H_b)^+ = \left( \Gamma_\epsilon(H_b)^\top \Gamma_\epsilon(H_b) + \alpha I \right)^{-1} \Gamma_\epsilon(H_b)^\top
+$$
+
+in this case, $\Gamma_\epsilon(H_b)^\top$ is a transposition of $\Gamma_\epsilon(H_b)$, $I$ is the identity matrix of the corresponding size.
+
+as a result, the division operation can be expressed as:
+
+$$
+\mathbf{e}_c = \Gamma_\epsilon(H_b)^+ \odot \Gamma_\epsilon(H_a)
+$$
+
+let's substitute the operator $\odot$:
+
+$$
+\mathbf{e}_c = \mathcal{T} \cdot \mathcal{S} \cdot \Gamma_\epsilon(H_b)^+ \cdot \Gamma_\epsilon(H_a)
+$$
+
+we continue to expand:
+
+$$
+\mathbf{e}_c = \mathcal{T} \cdot \mathcal{S} \cdot \left( \Gamma_\epsilon(H_b)^\top \Gamma_\epsilon(H_b) + \alpha I \right)^{-1} \Gamma_\epsilon(H_b)^\top \Gamma_\epsilon(H_a)
+$$
+
+a further goal is to ensure that $\mathbf{e}_c$ is within the acceptable range $\mathcal{R}$ while minimizing the residual noise. That is, we literally apply the projection operator $\mathcal{P}_{\mathcal{R}}$ to limit $\mathbf{e}_c$:
+
+$$
+\mathbf{e}_c' = \mathcal{P}_{\mathcal{R}}(\mathbf{e}_c) = \min\left( \max(\mathbf{e}_c, \mathbf{0}), \mathbf{1} \right)
+$$
+
+component by component, for each $i = 1, 2, ... , n$:
+
+$$
+(\mathbf{e}_c')_i =
+\begin{cases}
+0 & \text{if } (\mathbf{e}_c)_i < 0 \\
+(\mathbf{e}_c)_i & \text{if } 0 \leq (\mathbf{e}_c)_i \leq 1 \\
+1 & \text{if } (\mathbf{e}_c)_i > 1
+\end{cases}
+$$
+
+let's calculate the residual noise:
+
+<Warning>
+
+	hope it’s clear why, but if for some reason it is not clear then you can read our article on noise management [here](/tech-docs/hfhe/subtraction-in-hypergraph-space/hypergraph-stability-after-subtraction) (there we are talking about noise components after subtraction, but the logic is appropriate).
+
+</Warning>
+
+$$
+\boldsymbol{\epsilon}_{\text{res}} = \Gamma_\epsilon(H_b) \odot \mathbf{e}_c' - \Gamma_\epsilon(H_a)
+$$
+
+now the criteria for assessing compliance will be determined as:
+
+$$
+\| \boldsymbol{\epsilon}_{\text{res}} \|_2 \leq \epsilon_{\text{tol}}
+$$
+
+where $\epsilon_{\text{tol}}$ is the noise tolerance threshold after which the ciphertexts will become insane.
+
+next step iteratively refine $\mathbf{e}_c$ to minimize residual noise:
+
+$$
+\mathbf{e}_c^{(0)} = \mathbf{e}_c'
+$$
+
+for each iteration $𝑘 = 0 , 1 , 2 , … , 𝐾$ until $\| {\boldsymbol{\epsilon}_{\text{res}}^{(k)}} \|_2 \leq \epsilon_{\text{tol}}$:
+
+$$
+\mathbf{e}_c^{(k+1)} = \mathbf{e}_c^{(k)} + \Delta \mathbf{e}_c^{(k)}
+$$
+
+where $\Delta \mathbf{e}_c^{(k)}$ is defined as:
+
+$$
+\Delta \mathbf{e}_c^{(k)} = \Gamma_\epsilon(H_b)^+ \odot \left( \Gamma_\epsilon(H_a) - \Gamma_\epsilon(H_b) \odot \mathbf{e}_c^{(k)} \right) + \beta_k \boldsymbol{\epsilon}_c^{(k)^3}
+$$
+
+<Note>
+
+	in this case, $\beta_k$ is a scaling factor to control the influence of noise on iterations $k_n$.
+
+</Note>
+
+additive type of error is:
+
+$$
+\mathbf{r}^{(k)} = \Gamma_\epsilon(H_a) - \Gamma_\epsilon(H_b) \odot \mathbf{e}_c^{(k)}
+$$
+
+cubic noise correction:
+
+$$
+\boldsymbol{\epsilon}_c^{(k)^3} = \boldsymbol{\epsilon}_c^{(k)} \circ \boldsymbol{\epsilon}_c^{(k)} \circ \boldsymbol{\epsilon}_c^{(k)}
+$$
+
+the next step is to recalculate the residual noise after the update:
+
+$$
+\boldsymbol{\epsilon}_{\text{res}}^{(k+1)} = \| \Gamma_\epsilon(H_b) \odot \mathbf{e}_c^{(k+1)} - \Gamma_\epsilon(H_a) \|_2
+$$
+
+we will also check the compliance with tolerances:
+
+$$
+\| \boldsymbol{\epsilon}_{\text{res}}^{(k+1)} \|_2 \leq \epsilon_{\text{tol}}
+$$
+
+<p style={ { fontStyle: 'italic', fontWeight: 'bold' } }>
+	it is reasonable to ask how the stability of the structure is determined. Recall that the incidence matrix has good
+	rows provided that:
+</p>
+
+$$
+\epsilon_{ij} \leq \frac{1}{r} - \frac{1}{r^2} - \frac{2 \ln r}{r}
+$$
+
+and also the definition of the kernel norm:
+
+$$
+k_i(\Gamma(\Upsilon)) \leq 6 + \frac{37}{r} + O\left( \frac{1}{r^2} \right) \sum_{j=1}^{r} \epsilon_{ij}^2
+$$
+
+as was said earlier, to guarantee the stability of the hypergraph structure in the presence of cubic noise, the inequality must be satisfied for good strings with large $r$ (more details were described [here](/tech-docs/hfhe/subtraction-in-hypergraph-space/minimizing-deviations-in-hypergraph-matrices)):
+
+$$
+h_i(\Gamma(\Upsilon)) - k_i(\Gamma(\Upsilon)) \geq \frac{r^2}{4} \sum_{\substack{j=1 \\ \epsilon_{ij} < 0}}^{r} \epsilon_{ij}^2 + 2r \sum_{\substack{j=1 \\ \epsilon_{ij} > 0}}^{r} \epsilon_{ij}^2
+$$
+
+after iterative refinement, the final chiper hyperedge $\mathbf{e}_c$ is described as follows:
+
+$$
+\mathbf{e}_c = \Gamma_\epsilon(H_b)^+ \odot \Gamma_\epsilon(H_a) + \sum_{k=1}^{3} \beta_k \boldsymbol{\epsilon}^k
+$$
+
+$$
+\mathbf{e}_c = \mathcal{T} \cdot \mathcal{S} \cdot \left( \Gamma_\epsilon(H_b)^\top \Gamma_\epsilon(H_b) + \alpha I \right)^{-1} \Gamma_\epsilon(H_b)^\top \Gamma_\epsilon(H_a) + \sum_{k=1}^{3} \beta_k \boldsymbol{\epsilon}^k
+$$
+
+$$
+\mathbf{e}_c = \mathcal{T} \cdot \mathcal{S} \cdot \left( \Gamma_\epsilon(H_b)^\top \Gamma_\epsilon(H_b) + \alpha I \right)^{-1} \Gamma_\epsilon(H_b)^\top \Gamma_\epsilon(H_a) + \beta_1 \boldsymbol{\epsilon}^1 + \beta_2 \boldsymbol{\epsilon}^2 + \beta_3 \boldsymbol{\epsilon}^3
+$$
+
+finally, let's define a limit for the total accumulated noise:
+
+$$
+\boldsymbol{\epsilon}_{\text{total}} = \sum_{k=1}^{3} \beta_k \boldsymbol{\epsilon}^k \leq \epsilon_{\text{max}}
+$$
+
+<Warning>
+
+	we have briefly discussed the mechanics of dividing integers, and in the following we will also describe approaches to
+	dividing rational numbers.
+
+</Warning>

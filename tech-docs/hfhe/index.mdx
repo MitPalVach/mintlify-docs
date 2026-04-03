@@ -1,0 +1,38 @@
+---
+title: HFHE
+description: HFHE (Hypergraph Fully Homomorphic Encryption) is an approach to implementing a bootstrap FHE scheme using hypergraphs.
+---
+
+the implementation of logical gates through hypergraphs enables efficient binary operations:
+
+1. **and**  
+the intersection of two hyperedges, creating a new hyperedge that is active only when both original hyperedges are active.  
+$$e_{\text{AND}}(H) = e_1(H) \cap e_2(H)$$
+
+2. **or**  
+a union of hyperedges, where a new hyperedge is active if at least one of the original hyperedges is active.  
+$$e_{\text{OR}}(H) = e_1(H) \cup e_2(H)$$
+
+3. **xor**  
+the combination of two hyperedges, and and or, is activated only when only one of the original hyperedges is active.  
+$$e_{\text{XOR}}(H) = (e_1(H) \cup e_2(H)) \cap \overline{(e_1(H) \cap e_2(H))}$$
+
+4. **not**  
+inverting a hyperedge: a new hyperedge becomes active when the original one is inactive.  
+$$e_{\text{NOT}}(H) = \overline{e(H)}$$
+
+5. **nand**  
+a mix of and and not operations, with the nand hyperedge active when the and hyperedge is inactive.  
+$$e_{\text{NAND}}(H) = \overline{e_1(H) \cap e_2(H)}$$
+
+6. **nor**  
+the union of or and not activates the nor hyperedge when the or hyperedge is inactive.  
+$$e_{\text{NOR}}(H) = \overline{e_1(H) \cup e_2(H)}$$
+
+7. **xnor**  
+integration of xor and not operations, where the xnor hyperedge is active when the xor hyperedge becomes inactive.  
+$$e_{\text{XNOR}}(H) = \overline{(e_1(H) \cup e_2(H)) \cap \overline{(e_1(H) \cap e_2(H))}}$$
+
+these hypergraph-based implementations provide an approach to solving full homomorphic encryption problems.
+
+hypergraphs naturally support parallel computation because different nodes and hyperedges are processed independently.
